@@ -1,9 +1,10 @@
 package com.tikal.jenkins.plugins.multijob.views;
 
 import hudson.model.BallColor;
+import hudson.model.Item;
+import hudson.model.ItemGroup;
 import hudson.model.Result;
 import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
 import hudson.model.Hudson;
 import hudson.model.Job;
 
@@ -18,10 +19,13 @@ public class PhaseWrapper extends AbstractWrapper {
 	final int nestLevel;
 
 	final String phaseName;
+	
+	final boolean isConditional;
 
-	public PhaseWrapper(int nestLevel, String phaseName) {
+	public PhaseWrapper(int nestLevel, String phaseName, boolean isConditional) {
 		this.nestLevel = nestLevel;
 		this.phaseName = phaseName;
+		this.isConditional = isConditional;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -49,29 +53,39 @@ public class PhaseWrapper extends AbstractWrapper {
 		return nestLevel;
 	}
 
+	public boolean isConditional() {
+        return isConditional;
+    }
+	
 	// public AbstractProject getProject() {
 	// return project;
 	// }
 
 	public BallColor getIconColor() {
-		Result result = null;
-		AbstractBuild worseBuild = null;
-		for (BuildState buildState : childrenBuildState) {
-			AbstractProject project = (AbstractProject) Hudson.getInstance().getItem(buildState.getJobName());
-			AbstractBuild build = (AbstractBuild) project.getBuildByNumber(buildState.getLastBuildNumber());
-			if (build != null) {
-				if (result == null) {
-					result = build.getResult();
-					worseBuild = build;
-				} else {
-					if (build.getResult().isWorseThan(worseBuild.getResult())) {
+		try {
+			Result result = null;
+			AbstractBuild worseBuild = null;
+			for (BuildState buildState : childrenBuildState) {
+				Job project = (Job) Hudson.getInstance()
+						.getItem(buildState.getJobName());
+				AbstractBuild build = (AbstractBuild) project
+						.getBuildByNumber(buildState.getLastBuildNumber());
+				if (build != null) {
+					if (result == null) {
+						result = build.getResult();
 						worseBuild = build;
+					} else {
+						if (build.getResult().isWorseThan(worseBuild.getResult())) {
+							worseBuild = build;
+						}
 					}
 				}
 			}
-		}
-		if (worseBuild != null) {
-			return worseBuild.getIconColor();
+			if (worseBuild != null) {
+				return worseBuild.getIconColor();
+			}
+		} catch (Exception e) {
+			return null;
 		}
 		return null;
 	}
@@ -97,5 +111,15 @@ public class PhaseWrapper extends AbstractWrapper {
 
 	public void addChildBuildState(BuildState jobBuildState) {
 		childrenBuildState.add(jobBuildState);
+	}
+
+	public String getRelativeNameFrom(ItemGroup g) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public String getRelativeNameFrom(Item item) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

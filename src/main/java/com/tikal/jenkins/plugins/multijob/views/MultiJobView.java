@@ -5,15 +5,15 @@ import hudson.Indenter;
 import hudson.Util;
 import hudson.model.Result;
 import hudson.model.TopLevelItem;
-import hudson.model.ViewDescriptor;
 import hudson.model.ViewGroup;
 import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
 import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Hudson;
 import hudson.model.Job;
 import hudson.model.ListView;
+import hudson.model.ViewDescriptor;
+import hudson.tasks.BuildStep;
 import hudson.tasks.Builder;
 import hudson.util.DescribableList;
 import hudson.util.FormValidation;
@@ -29,7 +29,8 @@ import java.util.regex.PatternSyntaxException;
 
 import javax.servlet.ServletException;
 
-
+import org.jenkinsci.plugins.conditionalbuildstep.ConditionalBuilder;
+import org.jenkinsci.plugins.conditionalbuildstep.singlestep.SingleConditionalBuilder;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -42,8 +43,8 @@ import com.tikal.jenkins.plugins.multijob.PhaseJobsConfig;
 
 public class MultiJobView extends ListView {
 
-	private DescribableList<ListViewColumn, Descriptor<ListViewColumn>> columns = new DescribableList<ListViewColumn, Descriptor<ListViewColumn>>(this,
-			MultiJobListViewColumn.createDefaultInitialColumnList());
+	private DescribableList<ListViewColumn, Descriptor<ListViewColumn>> columns = new DescribableList<ListViewColumn, Descriptor<ListViewColumn>>(
+			this, MultiJobListViewColumn.createDefaultInitialColumnList());
 
 	@DataBoundConstructor
 	public MultiJobView(String name) {
@@ -55,7 +56,7 @@ public class MultiJobView extends ListView {
 	}
 
 	@Override
-	public Iterable<ListViewColumn> getColumns() {
+	public DescribableList<ListViewColumn, Descriptor<ListViewColumn>> getColumns() {
 		return columns;
 	}
 
@@ -68,7 +69,8 @@ public class MultiJobView extends ListView {
 		/**
 		 * Checks if the include regular expression is valid.
 		 */
-		public FormValidation doCheckIncludeRegex(@QueryParameter String value) throws IOException, ServletException, InterruptedException {
+		public FormValidation doCheckIncludeRegex(@QueryParameter String value)
+				throws IOException, ServletException, InterruptedException {
 			String v = Util.fixEmpty(value);
 			if (v != null) {
 				try {
@@ -88,9 +90,9 @@ public class MultiJobView extends ListView {
 		for (TopLevelItem item : items) {
 			if (item instanceof MultiJobProject) {
 				MultiJobProject project = (MultiJobProject) item;
-				if (project.isTopMost()) {
-					addTopLevelProject(project, out);
-				}
+				// if (project.isTopMost()) {
+				addTopLevelProject(project, out);
+				// }
 			}
 		}
 		return out;
@@ -102,121 +104,180 @@ public class MultiJobView extends ListView {
 		return out;
 	}
 
-	private void addTopLevelProject(MultiJobProject project, List<TopLevelItem> out) {
+	private void addTopLevelProject(MultiJobProject project,
+			List<TopLevelItem> out) {
 		addMultiProject(null, project, createBuildState(project), 0, null, out);
 	}
 
-	@SuppressWarnings("rawtypes")
-	private void addMultiProject(MultiJobProject parent, MultiJobProject project, BuildState buildState, int nestLevel, String phaseName, List<TopLevelItem> out) {
+	private void addMultiProject(MultiJobProject parent,
+			MultiJobProject project, BuildState buildState, int nestLevel,
+			String phaseName, List<TopLevelItem> out) {
 		out.add(new ProjectWrapper(parent, project, buildState, nestLevel));
 		List<Builder> builders = project.getBuilders();
 		for (Builder builder : builders) {
 			int phaseNestLevel = nestLevel + 1;
 			if (builder instanceof MultiJobBuilder) {
-				MultiJobBuilder reactorBuilder = (MultiJobBuilder) builder;
-				List<PhaseJobsConfig> subProjects = reactorBuilder.getPhaseJobs();
-				String currentPhaseName = reactorBuilder.getPhaseName();
-				PhaseWrapper phaseWrapper = new PhaseWrapper(phaseNestLevel, currentPhaseName);
-				out.add(phaseWrapper);
-				for (PhaseJobsConfig projectConfig : subProjects) {
-					TopLevelItem tli = Hudson.getInstance().getItem(projectConfig.getJobName());
-					if (tli instanceof MultiJobProject) {
-						MultiJobProject subProject = (MultiJobProject) tli;
-						BuildState jobBuildState = createBuildState(buildState, project, subProject);
-						phaseWrapper.addChildBuildState(jobBuildState);
-						addMultiProject(project, subProject, jobBuildState, phaseNestLevel + 1, currentPhaseName, out);
-					} else {
-						AbstractProject subProject = (AbstractProject) tli;
-						BuildState jobBuildState = createBuildState(buildState, project, subProject);
-						phaseWrapper.addChildBuildState(jobBuildState);
-						addSimpleProject(project, subProject, jobBuildState, phaseNestLevel + 1, out);
+				addProjectFromBuilder(project, buildState, out, builder,
+						phaseNestLevel, false);
+			}
+
+			else if (builder instanceof ConditionalBuilder) {
+				final List<BuildStep> conditionalbuilders = ((ConditionalBuilder) builder)
+						.getConditionalbuilders();
+				for (BuildStep buildStep : conditionalbuilders) {
+					if (buildStep instanceof MultiJobBuilder) {
+						addProjectFromBuilder(project, buildState, out,
+								buildStep, phaseNestLevel, true);
 					}
+				}
+			}
+
+			else if (builder instanceof SingleConditionalBuilder) {
+				final BuildStep buildStep = ((SingleConditionalBuilder) builder)
+						.getBuildStep();
+				if (buildStep instanceof MultiJobBuilder) {
+					addProjectFromBuilder(project, buildState, out, buildStep,
+							phaseNestLevel, true);
 				}
 			}
 		}
 	}
 
 	@SuppressWarnings("rawtypes")
-	private void addSimpleProject(MultiJobProject parent, AbstractProject project, BuildState buildState, int nestLevel, List<TopLevelItem> out) {
+	private void addProjectFromBuilder(MultiJobProject project,
+			BuildState buildState, List<TopLevelItem> out, BuildStep builder,
+			int phaseNestLevel, boolean isConditional) {
+		MultiJobBuilder reactorBuilder = (MultiJobBuilder) builder;
+		List<PhaseJobsConfig> subProjects = reactorBuilder.getPhaseJobs();
+		String currentPhaseName = reactorBuilder.getPhaseName();
+		PhaseWrapper phaseWrapper = new PhaseWrapper(phaseNestLevel,
+				currentPhaseName, isConditional);
+		out.add(phaseWrapper);
+		for (PhaseJobsConfig projectConfig : subProjects) {
+			TopLevelItem tli = Hudson.getInstance().getItem(
+					projectConfig.getJobName());
+			if (tli instanceof MultiJobProject) {
+				MultiJobProject subProject = (MultiJobProject) tli;
+				BuildState jobBuildState = createBuildState(buildState,
+						project, subProject);
+				phaseWrapper.addChildBuildState(jobBuildState);
+				addMultiProject(project, subProject, jobBuildState,
+						phaseNestLevel + 1, currentPhaseName, out);
+			} else {
+				Job subProject = (Job) tli;
+				if (subProject == null)
+					continue;
+				BuildState jobBuildState = createBuildState(buildState,
+						project, subProject);
+				phaseWrapper.addChildBuildState(jobBuildState);
+				addSimpleProject(project, subProject, jobBuildState,
+						phaseNestLevel + 1, out);
+			}
+		}
+	}
+
+	@SuppressWarnings("rawtypes")
+	private void addSimpleProject(MultiJobProject parent, Job project,
+			BuildState buildState, int nestLevel, List<TopLevelItem> out) {
 		out.add(new ProjectWrapper(parent, project, buildState, nestLevel));
 	}
 
 	@SuppressWarnings({ "rawtypes" })
-	private BuildState createBuildState(BuildState parentBuildState, MultiJobProject multiJobProject, AbstractProject project) {
+	private BuildState createBuildState(BuildState parentBuildState,
+			MultiJobProject multiJobProject, Job project) {
 		int previousBuildNumber = 0;
 		int lastBuildNumber = 0;
 		int lastSuccessBuildNumber = 0;
 		int lastFailureBuildNumber = 0;
-		MultiJobBuild previousParentBuild = multiJobProject.getBuildByNumber(parentBuildState.getPreviousBuildNumber());
-		MultiJobBuild lastParentBuild = multiJobProject.getBuildByNumber(parentBuildState.getLastBuildNumber());
-		MultiJobBuild lastParentSuccessBuild = multiJobProject.getBuildByNumber(parentBuildState.getLastSuccessBuildNumber());
-		MultiJobBuild lastParentFailureBuild = multiJobProject.getBuildByNumber(parentBuildState.getLastFailureBuildNumber());
+		MultiJobBuild previousParentBuild = multiJobProject
+				.getBuildByNumber(parentBuildState.getPreviousBuildNumber());
+		MultiJobBuild lastParentBuild = multiJobProject
+				.getBuildByNumber(parentBuildState.getLastBuildNumber());
+		MultiJobBuild lastParentSuccessBuild = multiJobProject
+				.getBuildByNumber(parentBuildState.getLastSuccessBuildNumber());
+		MultiJobBuild lastParentFailureBuild = multiJobProject
+				.getBuildByNumber(parentBuildState.getLastFailureBuildNumber());
 		if (previousParentBuild != null) {
-			List<SubBuild> subBuilds = previousParentBuild.getSubBuilds();
-			for (SubBuild subBuild : subBuilds) {
+			for (SubBuild subBuild : previousParentBuild.getSubBuilds()) {
 				if (subBuild.getJobName().equals(project.getName())) {
 					previousBuildNumber = subBuild.getBuildNumber();
 				}
 			}
 		}
 		if (lastParentBuild != null) {
-			List<SubBuild> subBuilds = lastParentBuild.getSubBuilds();
-			for (SubBuild subBuild : subBuilds) {
+			for (SubBuild subBuild : lastParentBuild.getSubBuilds()) {
 				if (subBuild.getJobName().equals(project.getName())) {
 					lastBuildNumber = subBuild.getBuildNumber();
 				}
 			}
 		}
 		if (lastParentSuccessBuild != null) {
-			List<SubBuild> subBuilds = lastParentSuccessBuild.getSubBuilds();
-			for (SubBuild subBuild : subBuilds) {
+			for (SubBuild subBuild : lastParentSuccessBuild.getSubBuilds()) {
 				if (subBuild.getJobName().equals(project.getName())) {
-					AbstractBuild build = (AbstractBuild) project.getBuildByNumber(subBuild.getBuildNumber());
-					if (build != null && Result.SUCCESS.equals(build.getResult())) {
+					AbstractBuild build = (AbstractBuild) project
+							.getBuildByNumber(subBuild.getBuildNumber());
+					if (build != null
+							&& Result.SUCCESS.equals(build.getResult())) {
 						lastSuccessBuildNumber = subBuild.getBuildNumber();
 						break;
 					} else {
-						lastParentSuccessBuild = multiJobProject.getBuildByNumber(parentBuildState.getPreviousBuildNumber());
+						lastParentSuccessBuild = multiJobProject
+								.getBuildByNumber(parentBuildState
+										.getPreviousBuildNumber());
 					}
 				}
 			}
 		}
 		if (lastParentFailureBuild != null) {
-			List<SubBuild> subBuilds = lastParentFailureBuild.getSubBuilds();
-			for (SubBuild subBuild : subBuilds) {
+			for (SubBuild subBuild : lastParentFailureBuild.getSubBuilds()) {
 				if (subBuild.getJobName().equals(project.getName())) {
-					AbstractBuild build = (AbstractBuild)   project.getBuildByNumber(subBuild.getBuildNumber());
-					if (build != null && Result.FAILURE.equals(((AbstractBuild)build).getResult())) {
+					AbstractBuild build = (AbstractBuild) project
+							.getBuildByNumber(subBuild.getBuildNumber());
+					if (build != null
+							&& Result.FAILURE.equals(((AbstractBuild) build)
+									.getResult())) {
 						lastFailureBuildNumber = subBuild.getBuildNumber();
 						break;
 					} else {
-						lastParentFailureBuild = multiJobProject.getBuildByNumber(parentBuildState.getPreviousBuildNumber());
+						lastParentFailureBuild = multiJobProject
+								.getBuildByNumber(parentBuildState
+										.getPreviousBuildNumber());
 					}
 				}
 			}
 		}
-		return new BuildState(project.getName(), previousBuildNumber, lastBuildNumber, lastSuccessBuildNumber, lastFailureBuildNumber);
+		return new BuildState(project.getName(), previousBuildNumber,
+				lastBuildNumber, lastSuccessBuildNumber, lastFailureBuildNumber);
 	}
 
 	private BuildState createBuildState(MultiJobProject project) {
 
 		MultiJobBuild lastBuild = project.getLastBuild();
-		MultiJobBuild previousBuild = lastBuild == null ? null : lastBuild.getPreviousBuild();
+		MultiJobBuild previousBuild = lastBuild == null ? null : lastBuild
+				.getPreviousBuild();
 		MultiJobBuild lastSuccessfulBuild = project.getLastSuccessfulBuild();
 		MultiJobBuild lastFailedBuild = project.getLastFailedBuild();
-		return new BuildState(project.getName(), previousBuild == null ? 0 : previousBuild.getNumber(), lastBuild == null ? 0 : lastBuild.getNumber(),
-				lastSuccessfulBuild == null ? 0 : lastSuccessfulBuild.getNumber(), lastFailedBuild == null ? 0 : lastFailedBuild.getNumber());
+		return new BuildState(project.getName(), previousBuild == null ? 0
+				: previousBuild.getNumber(), lastBuild == null ? 0
+				: lastBuild.getNumber(), lastSuccessfulBuild == null ? 0
+				: lastSuccessfulBuild.getNumber(), lastFailedBuild == null ? 0
+				: lastFailedBuild.getNumber());
 	}
 
 	@Override
-	protected void submit(StaplerRequest req) throws ServletException, FormException, IOException {
+	protected void submit(StaplerRequest req) throws ServletException,
+			FormException, IOException {
 	}
 
 	protected void initColumns() {
 		try {
 			Field field = ListView.class.getDeclaredField("columns");
 			field.setAccessible(true);
-			field.set(this, new DescribableList<ListViewColumn, Descriptor<ListViewColumn>>(this, MultiJobListViewColumn.createDefaultInitialColumnList()));
+			field.set(
+					this,
+					new DescribableList<ListViewColumn, Descriptor<ListViewColumn>>(
+							this, MultiJobListViewColumn
+									.createDefaultInitialColumnList()));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

@@ -6,10 +6,13 @@ import hudson.model.ItemGroup;
 import hudson.model.TopLevelItem;
 import hudson.model.Hudson;
 import hudson.model.Project;
+import hudson.util.AlternativeUiTextProvider;
 
 import com.tikal.jenkins.plugins.multijob.views.MultiJobView;
 
-public class MultiJobProject extends Project<MultiJobProject, MultiJobBuild> implements TopLevelItem {
+public class MultiJobProject extends Project<MultiJobProject, MultiJobBuild>
+		implements TopLevelItem {
+
 
 	@SuppressWarnings("rawtypes")
 	private MultiJobProject(ItemGroup parent, String name) {
@@ -29,6 +32,11 @@ public class MultiJobProject extends Project<MultiJobProject, MultiJobBuild> imp
 	public Hudson getParent() {
 		return Hudson.getInstance();
 	}
+	
+        @Override
+        public String getPronoun() {
+            return AlternativeUiTextProvider.get(PRONOUN, this, getDescriptor().getDisplayName());
+        }
 
 	public DescriptorImpl getDescriptor() {
 		return DESCRIPTOR;

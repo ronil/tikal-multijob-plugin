@@ -1,49 +1,51 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<groupId>org.jenkins-ci.plugins</groupId>
 		<artifactId>plugin</artifactId>
-		<version>1.403</version>
+		<version>1.480</version>
 	</parent>
-	<!-- parent>
-		<groupId>org.jvnet.hudson.plugins</groupId>
-		<artifactId>hudson-plugin-parent</artifactId>
-		<version>2.1.0</version>
-		<relativePath>../pom.xml</relativePath>
-	</parent-->
- 
-	<groupId>com.tikal.jenkins.plugins</groupId>
+	<!-- parent> <groupId>org.jvnet.hudson.plugins</groupId> <artifactId>hudson-plugin-parent</artifactId> 
+		<version>2.1.0</version> <relativePath>../pom.xml</relativePath> </parent -->
+
 	<artifactId>jenkins-multijob-plugin</artifactId>
-	<version>1.0-SNAPSHOT</version>
-	<packaging>hpi</packaging>
+	<version>1.11-SNAPSHOT</version>
+	<name>Jenkins Multijob plugin</name>
+	<description>Enabling full hierarchy of Jenkins jobs</description>
+	<url>http://wiki.jenkins-ci.org/display/JENKINS/Multijob+Plugin</url>
 
-	<properties>
-        <!-- public.repository.url>http://maven.glassfish.org/content/groups/public/</public.repository.url-->
-		<public.repository.url>http://dev.tikalk.com/nexus/content/groups/public/</public.repository.url>
-	</properties>
-	
-	<repositories>
+	<distributionManagement>
 		<repository>
-			<id>maven.glassfish.org-public</id>
-			<url>http://maven.glassfish.org/content/groups/public</url>
+			<id>maven.jenkins-ci.org</id>
+			<url>http://maven.jenkins-ci.org/content/repositories/releases/</url>
 		</repository>
-		<repository>
-			<id>tikal-public</id>
-			<url>http://dev.tikalk.com/nexus/content/groups/public/</url>
-		</repository>
-	</repositories>
+	</distributionManagement>
 
-	<pluginRepositories>
-		<pluginRepository>
-			<id>tikal-public</id>
-			<url>${public.repository.url}</url>
-		</pluginRepository>
-		<pluginRepository>
-			<id>maven.glassfish.org-public</id>
-			<url>http://maven.glassfish.org/content/groups/public</url>
-		</pluginRepository>
-	</pluginRepositories>
+
+	<developers>
+		<developer>
+			<id>alex-n</id>
+			<name>Alex Nickolaevsky</name>
+			<email>alex@tikalk.com</email>
+		</developer>
+		<developer>
+			<id>ronil</id>
+			<name>Roni Licht</name>
+			<email>roni@tikalk.com</email>
+		</developer>
+		<developer>
+			<id>itaior</id>
+			<name>Itai Or</name>
+			<email>itai@tikalk.com</email>
+		</developer>
+	</developers>
+
+	<scm>
+		<connection>scm:git:git://github.com:jenkinsci/tikal-multijob-plugin.git</connection>
+		<developerConnection>scm:git:git@github.com:jenkinsci/tikal-multijob-plugin.git</developerConnection>
+		<url>https://github.com/jenkinsci/tikal-multijob-plugin.git</url>
+	</scm>
+
 
 	<dependencies>
 		<dependency>
@@ -53,5 +55,113 @@
 			<version>${project.parent.version}</version>
 			<scope>test</scope>
 		</dependency>
+		
+		<dependency>
+			<groupId>org.jenkins-ci.plugins</groupId>
+			<artifactId>parameterized-trigger</artifactId>
+			<version>2.21</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.jenkins-ci.plugins</groupId>
+			<artifactId>envinject</artifactId>
+			<version>1.83</version>
+		</dependency>
+
+		<dependency>
+		    <groupId>org.jenkins-ci.plugins</groupId>
+		    <artifactId>conditional-buildstep</artifactId>
+		    <version>1.3.1</version>
+		</dependency>
 	</dependencies>
+
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.eclipse.m2e</groupId>
+					<artifactId>lifecycle-mapping</artifactId>
+					<version>1.0.0</version>
+					<configuration>
+						<lifecycleMappingMetadata>
+							<pluginExecutions>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>org.jenkins-ci.tools</groupId>
+										<artifactId>maven-hpi-plugin</artifactId>
+										<versionRange>[1.74,)</versionRange>
+										<goals>
+											<goal>insert-test</goal>
+											<goal>test-hpl</goal>
+											<goal>testCompile</goal>
+											<goal>resolve-test-dependencies</goal>
+											<goal>validate</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
+									</action>
+								</pluginExecution>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>org.codehaus.gmaven</groupId>
+										<artifactId>gmaven-plugin</artifactId>
+										<versionRange>[1.3,)</versionRange>
+										<goals>
+											<goal>testCompile</goal>
+											<goal>generateTestStubs</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
+									</action>
+								</pluginExecution>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>org.apache.maven.plugins</groupId>
+										<artifactId>maven-enforcer-plugin</artifactId>
+										<versionRange>[1.0.1,)</versionRange>
+										<goals>
+											<goal>display-info</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
+									</action>
+								</pluginExecution>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>org.jvnet.localizer</groupId>
+										<artifactId>maven-localizer-plugin</artifactId>
+										<versionRange>[1.13,)</versionRange>
+										<goals>
+											<goal>generate</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
+									</action>
+								</pluginExecution>
+							</pluginExecutions>
+						</lifecycleMappingMetadata>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+
+	<repositories>
+		<repository>
+			<id>repo.jenkins-ci.org</id>
+			<url>http://repo.jenkins-ci.org/public/</url>
+		</repository>
+	</repositories>
+
+	<pluginRepositories>
+		<pluginRepository>
+			<id>repo.jenkins-ci.org</id>
+			<url>http://repo.jenkins-ci.org/public/</url>
+		</pluginRepository>
+	</pluginRepositories>
+	<packaging>hpi</packaging>
 </project>
