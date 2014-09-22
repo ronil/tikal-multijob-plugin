@@ -2,14 +2,18 @@
 	xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form"
 	xmlns:p="/lib/hudson/project">
 
-	<j:choose>
-		<j:when test="${it.topMost}">
+	<j:if test="${it.supportsMakeDisabled()}">
+		<st:include page="makeDisabled.jelly" />
+	</j:if>
+
+	<!--j:choose>
+		<j:when test="${it.topMost}"-->
 			<br />
 			<t:projectView jobs="${it.view.getRootItem(it)}"
 				jobBaseUrl="${it.rootUrl}" showViewTabs="false" columnExtensions="${it.view.columns}">
 			</t:projectView>
-		</j:when>
-	</j:choose>
+		<!--/j:when>
+	</j:choose-->
 
 
 	<p:projectActionFloatingBox />
@@ -19,11 +23,11 @@
 		<j:forEach var="act" items="${it.prominentActions}">
 			<t:summary icon="${act.iconFileName}" href="${act.urlName}">
 				${act.displayName}
-      </t:summary>
+            </t:summary>
 		</j:forEach>
 		<t:summary icon="folder.gif" href="ws/" permission="${it.WORKSPACE}">
 			${%Workspace}
-    </t:summary>
+        </t:summary>
 
 		<t:artifactList caption="${%Last Successful Artifacts}"
 			build="${it.lastSuccessfulBuild}" baseURL="lastSuccessfulBuild/"
@@ -33,7 +37,7 @@
 			${%Recent Changes}
 		</t:summary>
 
-		<j:set var="tr" value="${it.lastCompletedBuild.testResultAction}" />
+		<j:set var="tr" value="${it.testResultAction}" />
 		<j:if test="${tr!=null}">
 			<t:summary icon="clipboard.gif">
 				<a href="lastCompletedBuild/testReport/">${%Latest Test Result}</a>

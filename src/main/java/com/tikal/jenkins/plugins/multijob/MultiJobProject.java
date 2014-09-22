@@ -1,68 +1,78 @@
 package com.tikal.jenkins.plugins.multijob;
 
+import jenkins.model.Jenkins;
 import hudson.Extension;
 import hudson.model.DependencyGraph;
 import hudson.model.ItemGroup;
 import hudson.model.TopLevelItem;
 import hudson.model.Hudson;
 import hudson.model.Project;
+import hudson.util.AlternativeUiTextProvider;
 
 import com.tikal.jenkins.plugins.multijob.views.MultiJobView;
+import hudson.tasks.test.AbstractTestResultAction;
 
-public class MultiJobProject extends Project<MultiJobProject, MultiJobBuild> implements TopLevelItem {
+public class MultiJobProject extends Project<MultiJobProject, MultiJobBuild>
+        implements TopLevelItem {
 
-	@SuppressWarnings("rawtypes")
-	private MultiJobProject(ItemGroup parent, String name) {
-		super(parent, name);
-	}
 
-	public MultiJobProject(Hudson parent, String name) {
-		super(parent, name);
-	}
+    @SuppressWarnings("rawtypes")
+    private MultiJobProject(ItemGroup parent, String name) {
+        super(parent, name);
+    }
 
-	@Override
-	protected Class<MultiJobBuild> getBuildClass() {
-		return MultiJobBuild.class;
-	}
+    public MultiJobProject(Hudson parent, String name) {
+        super(parent, name);
+    }
 
-	@Override
-	public Hudson getParent() {
-		return Hudson.getInstance();
-	}
+    @Override
+    protected Class<MultiJobBuild> getBuildClass() {
+        return MultiJobBuild.class;
+    }
 
-	public DescriptorImpl getDescriptor() {
-		return DESCRIPTOR;
-	}
+    @Override
+    public String getPronoun() {
+        return AlternativeUiTextProvider.get(PRONOUN, this, getDescriptor().getDisplayName());
+    }
 
-	@Extension(ordinal = 1000)
-	public static final DescriptorImpl DESCRIPTOR = new DescriptorImpl();
+    public DescriptorImpl getDescriptor() {
+        return DESCRIPTOR;
+    }
 
-	public static final class DescriptorImpl extends AbstractProjectDescriptor {
-		public String getDisplayName() {
-			return "MultiJob Project";
-		}
+    @Extension(ordinal = 1000)
+    public static final DescriptorImpl DESCRIPTOR = new DescriptorImpl();
 
-		@SuppressWarnings("rawtypes")
-		public MultiJobProject newInstance(ItemGroup itemGroup, String name) {
-			return new MultiJobProject(itemGroup, name);
-		}
-	}
+    public static final class DescriptorImpl extends AbstractProjectDescriptor {
+        public String getDisplayName() {
+            return "MultiJob Project";
+        }
 
-	@Override
-	protected void buildDependencyGraph(DependencyGraph graph) {
-		super.buildDependencyGraph(graph);
-	}
+        @SuppressWarnings("rawtypes")
+        public MultiJobProject newInstance(ItemGroup itemGroup, String name) {
+            return new MultiJobProject(itemGroup, name);
+        }
+    }
 
-	public boolean isTopMost() {
-		return getUpstreamProjects().size() == 0;
-	}
+    @Override
+    protected void buildDependencyGraph(DependencyGraph graph) {
+        super.buildDependencyGraph(graph);
+    }
 
-	public MultiJobView getView() {
-		MultiJobView view = new MultiJobView("");
-		return view;
-	}
+    public boolean isTopMost() {
+        return getUpstreamProjects().size() == 0;
+    }
 
-	public String getRootUrl() {
-		return Hudson.getInstance().getRootUrl();
-	}
+    public MultiJobView getView() {
+        return new MultiJobView("");
+    }
+
+    public String getRootUrl() {
+        return Jenkins.getInstance().getRootUrl();
+    }
+
+    public AbstractTestResultAction<?> getTestResultAction() {
+        MultiJobBuild b = getLastCompletedBuild();
+        return b != null ? b.getAction(AbstractTestResultAction.class) : null;
+    }
+
 }
