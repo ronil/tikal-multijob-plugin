@@ -1,3 +1,4 @@
-<j:jelly xmlns:j="jelly:core">
-    <th>Last Failure</th>
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler">
+    <st:include class="hudson.views.LastFailureColumn" page="columnHeader.jelly"/>
 </j:jelly>

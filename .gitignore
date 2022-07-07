@@ -1,4 +1,12 @@
 /target
 /work
+.settings/
 .DS_Store
+.classpath
+.project
+.idea
+*.iml
+.factorypath
+pom.xml.releaseBackup
+release.properties
 

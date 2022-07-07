@@ -1,3 +1,4 @@
+<?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define"
 	xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form"
 	xmlns:i="jelly:fmt">
@@ -5,8 +6,8 @@
 	<td data="${lBuild.duration ?: '0'}">
 		<j:choose>
 			<j:when test="${lBuild!=null}">
-				<a href="${jobBaseUrl}${lsBuild.url}/console">
-					<img src="${imagesURL}/${subIconSize}/terminal.gif" title="${%Console output}"
+				<a href="${job.absoluteUrl}${job.getBuildNumber()}/console">
+					<l:icon class="icon-terminal icon-${subIconSizeClass}" title="${%Console output}"
 						alt="${%Console output}" border="0" />
 				</a>
 			</j:when>
